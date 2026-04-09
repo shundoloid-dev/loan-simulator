@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>住宅ローンシミュレーター</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: sans-serif;
+  background: #f5f5f5;
+  margin: 0;
+  padding: 10px;
+  font-size: 16px;
+}
+h1 {
+  text-align: center;
+  font-size: 20px;
+  margin: 10px 0 14px;
+}
+.card {
+  background: #fff;
+  padding: 15px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+}
+.card b {
+  font-size: 15px;
+  display: block;
+  margin-bottom: 6px;
+  color: #222;
+}
+.label {
+  font-size: 13px;
+  color: #555;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+.input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.input-wrap input { flex: 1; }
+input[type=number], select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  background: #fff;
+}
+.unit {
+  font-size: 14px;
+  color: #555;
+  white-space: nowrap;
+}
+.row2 { display: flex; gap: 8px; }
+.row2 > div { flex: 1; }
+#bonusRatioDisplay {
+  font-size: 15px;
+  font-weight: bold;
+  color: #00a000;
+  text-align: center;
+  margin: 4px 0;
+}
+input[type=range] { width: 100%; margin: 4px 0; }
+button#calcBtn {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  background: #00c300;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  position: sticky;
+  bottom: 10px;
+  margin-top: 6px;
+}
+button#calcBtn:disabled { background: #aaa; }
+.summary-box {
+  background: #e8f5e9;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.summary-box h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #2e7d32;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 3px 0;
+  border-bottom: 1px solid #c8e6c9;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-row .val { font-weight: bold; color: #1b5e20; }
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 10px;
+}
+table {
+  border-collapse: collapse;
+  font-size: 11px;
+  min-width: 620px;
+  width: 100%;
+}
+th {
+  background: #388e3c;
+  color: #fff;
+  padding: 6px 4px;
+  text-align: center;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+td {
+  padding: 5px 4px;
+  text-align: right;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+td:nth-child(2) { text-align: center; }
+tr:nth-child(even) { background: #f9f9f9; }
+tr.bonus-row { background: #fff9c4; }
+tr.bonus-row td { color: #5d4037; }
+#errMsg {
+  color: red;
+  font-size: 14px;
+  margin-top: 6px;
+  display: none;
+}
+#loading {
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  padding: 10px;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<h1>🏠 住宅ローンシミュレーター</h1>
+
+<!-- ① 借入条件 -->
+<div class="card">
+  <b>① 借入条件</b>
+
+  <div class="label">借入金額</div>
+  <div class="input-wrap">
+    <input id="loan" type="number" min="0" placeholder="例: 3000">
+    <div class="unit">万円</div>
+  </div>
+
+  <div class="label">返済期間</div>
+  <div class="row2">
+    <div>
+      <div class="input-wrap">
+        <input id="termYears" type="number" min="1" max="50" placeholder="例: 35">
+        <div class="unit">年</div>
+      </div>
+    </div>
+    <div>
+      <div class="input-wrap">
+        <input id="termMonths" type="number" min="0" max="11" placeholder="例: 0">
+        <div class="unit">ヶ月</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">返済開始年月</div>
+  <div class="row2">
+    <div>
+      <div class="input-wrap">
+        <input id="startYear" type="number" min="2000" max="2100" placeholder="例: 2025">
+        <div class="unit">年</div>
+      </div>
+    </div>
+    <div>
+      <div class="input-wrap">
+        <input id="startMonth" type="number" min="1" max="12" placeholder="例: 4">
+        <div class="unit">月</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ② 金利条件 -->
+<div class="card">
+  <b>② 金利条件</b>
+
+  <div class="label">当初金利（年利）</div>
+  <div class="input-wrap">
+    <input id="rate1" type="number" step="0.01" min="0" placeholder="例: 1.5">
+    <div class="unit">%</div>
+  </div>
+
+  <div class="label">当初固定期間（段階金利がある場合）</div>
+  <div class="input-wrap">
+    <input id="years1" type="number" min="0" placeholder="例: 10（なければ0）">
+    <div class="unit">年</div>
+  </div>
+
+  <div class="label">その後の金利（段階金利がある場合）</div>
+  <div class="input-wrap">
+    <input id="rate2" type="number" step="0.01" min="0" placeholder="例: 2.0（なければ空白）">
+    <div class="unit">%</div>
+  </div>
+</div>
+
+<!-- ③ ボーナス払い -->
+<div class="card">
+  <b>③ ボーナス払い</b>
+
+  <div class="label">ボーナス払いに充てる元本の割合</div>
+  <div id="bonusRatioDisplay">0%（ボーナス払いなし）</div>
+  <input type="range" id="bonusRatio" min="0" max="50" step="5" value="0"
+         oninput="updateBonusLabel(this.value)">
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;">
+    <span>0%</span><span>25%</span><span>50%</span>
+  </div>
+
+  <div id="bonusMonthWrap">
+    <div class="label">ボーナス月①</div>
+    <select id="bonusM1">
+      <option value="1">1月</option><option value="2">2月</option>
+      <option value="3">3月</option><option value="4">4月</option>
+      <option value="5">5月</option><option value="6" selected>6月</option>
+      <option value="7">7月</option><option value="8">8月</option>
+      <option value="9">9月</option><option value="10">10月</option>
+      <option value="11">11月</option><option value="12">12月</option>
+    </select>
+
+    <div class="label">ボーナス月②（年1回なら①と同じ月を選択）</div>
+    <select id="bonusM2">
+      <option value="1">1月</option><option value="2">2月</option>
+      <option value="3">3月</option><option value="4">4月</option>
+      <option value="5">5月</option><option value="6">6月</option>
+      <option value="7">7月</option><option value="8">8月</option>
+      <option value="9">9月</option><option value="10">10月</option>
+      <option value="11">11月</option><option value="12" selected>12月</option>
+    </select>
+  </div>
+</div>
+
+<div id="errMsg"></div>
+<button id="calcBtn" onclick="calc()">計 算 す る</button>
+<div id="loading">計算中...</div>
+
+<div id="result" style="display:none;margin-top:12px;">
+  <div id="summaryBox" class="summary-box"></div>
+  <div class="table-wrap">
+    <table id="detailTable">
+      <thead>
+        <tr>
+          <th>回</th>
+          <th>年/月</th>
+          <th>月払<br>返済額</th>
+          <th>元金分</th>
+          <th>利息分</th>
+          <th>ボーナス<br>返済額</th>
+          <th>元金分</th>
+          <th>利息分</th>
+          <th>借入残高</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// =============================================
+// 🔥 GASのURLをここに直接記載
+// =============================================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzJlDhuV7sBmSdSStJZdFM_ZvRds_nFVTIw80ju_Out4kDOwNsWsxNTvxjpuqeWRueG/exec";
+
+function updateBonusLabel(v) {
+  const n = Number(v);
+  document.getElementById('bonusRatioDisplay').textContent =
+    n === 0 ? '0%（ボーナス払いなし）' : n + '%';
+  document.getElementById('bonusMonthWrap').style.opacity = n === 0 ? '0.3' : '1';
+}
+updateBonusLabel(0);
+
+function fmt(n) { return n.toLocaleString() + '円'; }
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideErr() {
+  document.getElementById('errMsg').style.display = 'none';
+}
+
+function calc() {
+  hideErr();
+
+  const loan       = Number(document.getElementById('loan').value)       || 0;
+  const termYears  = Number(document.getElementById('termYears').value)  || 0;
+  const termMonths = Number(document.getElementById('termMonths').value) || 0;
+  const startYear  = Number(document.getElementById('startYear').value)  || 0;
+  const startMonth = Number(document.getElementById('startMonth').value) || 0;
+  const rate1      = document.getElementById('rate1').value;
+  const years1     = Number(document.getElementById('years1').value)     || 0;
+  const rate2      = document.getElementById('rate2').value;
+  const bonusRatio = Number(document.getElementById('bonusRatio').value) || 0;
+  const bonusM1    = Number(document.getElementById('bonusM1').value);
+  const bonusM2    = Number(document.getElementById('bonusM2').value);
+
+  if (loan <= 0)                   { showErr('借入金額を入力してください。'); return; }
+  const totalMonths = termYears * 12 + termMonths;
+  if (totalMonths <= 0)            { showErr('返済期間を入力してください。'); return; }
+  if (!rate1 || Number(rate1) < 0) { showErr('当初金利を入力してください。'); return; }
+  if (!startYear || !startMonth)   { showErr('返済開始年月を入力してください。'); return; }
+
+  const params = new URLSearchParams({
+    action:     'calc',
+    loan:       loan * 10000,
+    months:     totalMonths,
+    rate1:      Number(rate1),
+    years1:     years1,
+    rate2:      rate2 !== '' ? Number(rate2) : '',
+    bonusRatio: bonusRatio,
+    bonusM1:    bonusM1,
+    bonusM2:    bonusM2,
+    startYear:  startYear,
+    startMonth: startMonth
+  });
+
+  document.getElementById('calcBtn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('result').style.display = 'none';
+
+  fetch(GAS_URL + "?" + params)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) { showErr(data.error); return; }
+      renderResult(data);
+    })
+    .catch(err => {
+      showErr('通信エラーが発生しました: ' + err);
+    })
+    .finally(() => {
+      document.getElementById('calcBtn').disabled = false;
+      document.getElementById('loading').style.display = 'none';
+    });
+}
+
+function renderResult(data) {
+  const s = data.summary;
+
+  let summaryHtml = '<h3>📊 計算結果サマリー</h3>';
+  summaryHtml += row('毎月返済額', fmt(s.mPayment));
+  if (s.bPayment > 0) summaryHtml += row('ボーナス時返済額', fmt(s.bPayment));
+  summaryHtml += row('借入元本', fmt(s.totalPrin));
+  summaryHtml += row('総返済額', fmt(s.totalPay));
+  summaryHtml += row('総支払利息', fmt(s.totalInt));
+  document.getElementById('summaryBox').innerHTML = summaryHtml;
+
+  const tbody = document.getElementById('detailBody');
+  tbody.innerHTML = '';
+  data.rows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.bPay > 0) tr.classList.add('bonus-row');
+    tr.innerHTML = `
+      <td>${r.seq}</td>
+      <td>${r.yearMonth}</td>
+      <td>${r.mPay.toLocaleString()}</td>
+      <td>${r.mPrin.toLocaleString()}</td>
+      <td>${r.mInt.toLocaleString()}</td>
+      <td>${r.bPay > 0 ? r.bPay.toLocaleString() : '-'}</td>
+      <td>${r.bPrin > 0 ? r.bPrin.toLocaleString() : '-'}</td>
+      <td>${r.bInt > 0 ? r.bInt.toLocaleString() : '-'}</td>
+      <td>${r.balance.toLocaleString()}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+}
+
+function row(label, val) {
+  return `<div class="summary-row"><span>${label}</span><span class="val">${val}</span></div>`;
+}
+</script>
+
+</body>
+</html>
